@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Fashion Retail Co. — Panel de riesgo de churn</title>
+<style>
+  :root{
+    --bg:#F6F5F1; --card:#FFFFFF; --ink:#1E1B16; --ink-soft:#66605A; --ink-mute:#918B84;
+    --line:#E4E0D8; --accent:#7A4E2D; --accent-soft:#F1E4D8;
+    --risk-hi:#B4432E; --risk-hi-bg:#FBE7E2;
+    --risk-mid:#C77F1B; --risk-mid-bg:#FBEEDA;
+    --risk-lo:#2F7A52; --risk-lo-bg:#E4F1E9;
+    --serif: "Iowan Old Style","Palatino Linotype",Georgia,serif;
+    --sans: -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#17140F; --card:#211D17; --ink:#F1ECE4; --ink-soft:#C7BEB2; --ink-mute:#8C8478;
+      --line:#3A342C; --accent:#D69B6F; --accent-soft:#3A2A1C;
+      --risk-hi:#E27A63; --risk-hi-bg:#3A1E18;
+      --risk-mid:#E6AC52; --risk-mid-bg:#3A2D16;
+      --risk-lo:#6FBE8F; --risk-lo-bg:#173023;
+    }
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);padding:32px 24px 64px;}
+  .wrap{max-width:1120px;margin:0 auto;}
+  header{margin-bottom:32px;}
+  .eyebrow{font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent);font-weight:600;margin:0 0 6px;}
+  h1{font-family:var(--serif);font-weight:400;font-size:34px;margin:0 0 8px;letter-spacing:-.01em;}
+  .sub{color:var(--ink-soft);font-size:14.5px;max-width:640px;line-height:1.55;margin:0;}
+  .meta-row{display:flex;gap:18px;flex-wrap:wrap;margin-top:14px;font-size:12.5px;color:var(--ink-mute);}
+  .meta-row span{display:flex;align-items:center;gap:6px;}
+  .dot{width:6px;height:6px;border-radius:50%;background:var(--accent);display:inline-block;}
+
+  .kpis{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin:28px 0 36px;}
+  .kpi{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px 16px 14px;}
+  .kpi-label{font-size:11.5px;color:var(--ink-mute);text-transform:uppercase;letter-spacing:.06em;margin:0 0 8px;}
+  .kpi-val{font-family:var(--serif);font-size:26px;margin:0;}
+  .kpi-note{font-size:11.5px;color:var(--ink-soft);margin-top:4px;}
+
+  section{margin-bottom:40px;}
+  .sec-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:14px;flex-wrap:wrap;gap:8px;}
+  .sec-title{font-family:var(--serif);font-size:20px;margin:0;}
+  .sec-desc{font-size:13px;color:var(--ink-soft);margin:2px 0 0;max-width:560px;}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:20px 22px;}
+  .grid-2{display:grid;grid-template-columns:1.4fr 1fr;gap:16px;}
+  .grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+  .grid-2col{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+
+  select{background:var(--card);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:12.5px;font-family:var(--sans);}
+
+  .legend{display:flex;flex-wrap:wrap;gap:12px 16px;font-size:12px;color:var(--ink-soft);margin-top:10px;}
+  .legend span{display:flex;align-items:center;gap:6px;}
+  .sw{width:10px;height:10px;border-radius:2px;display:inline-block;}
+
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{text-align:left;font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-mute);border-bottom:1px solid var(--line);padding:8px 10px;}
+  td{padding:9px 10px;border-bottom:1px solid var(--line);color:var(--ink);}
+  tr:last-child td{border-bottom:none;}
+  .pill{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11.5px;font-weight:600;}
+  .pill-hi{background:var(--risk-hi-bg);color:var(--risk-hi);}
+  .pill-mid{background:var(--risk-mid-bg);color:var(--risk-mid);}
+  .pill-lo{background:var(--risk-lo-bg);color:var(--risk-lo);}
+
+  .segbar{display:flex;height:34px;border-radius:8px;overflow:hidden;margin-bottom:10px;}
+  .seg-item{display:flex;align-items:center;justify-content:center;font-size:11.5px;color:#fff;font-weight:600;}
+
+  .model-note{font-size:12.5px;color:var(--ink-soft);line-height:1.6;background:var(--accent-soft);border-radius:8px;padding:12px 14px;margin-top:14px;}
+  footer{color:var(--ink-mute);font-size:11.5px;text-align:center;margin-top:56px;}
+
+  @media (max-width:860px){
+    .kpis{grid-template-columns:repeat(2,1fr);}
+    .grid-2,.grid-3,.grid-2col{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <p class="eyebrow">RM · Fashion Retail Co.</p>
+  <h1>Riesgo de fuga de clientes</h1>
+  <p class="sub">Panel construido sobre 183,861 transacciones consolidadas de 7 tiendas (nov 2022 – ago 2025). El modelo predice qué clientes tienen alta probabilidad de no volver a comprar en los próximos 180 días.</p>
+  <div class="meta-row" id="meta-row"></div>
+</header>
+
+<div class="kpis" id="kpi-row"></div>
+
+<section>
+  <div class="sec-head">
+    <div>
+      <p class="sec-title">Ventas mensuales por tienda</p>
+      <p class="sec-desc">Ingreso facturado (valor cancelado) por mes. Usa el filtro para aislar una tienda.</p>
+    </div>
+    <select id="store-filter"></select>
+  </div>
+  <div class="card">
+    <div style="position:relative;height:320px;">
+      <canvas id="salesChart" role="img" aria-label="Serie mensual de ventas por tienda"></canvas>
+    </div>
+    <div class="legend" id="sales-legend"></div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <div>
+      <p class="sec-title">Desempeño por tienda</p>
+      <p class="sec-desc">Ingreso total y ticket promedio por local en todo el periodo.</p>
+    </div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div style="position:relative;height:280px;">
+        <canvas id="storeRevChart" role="img" aria-label="Ingreso total por tienda"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <table id="store-table"><thead><tr><th>Tienda</th><th>Clientes</th><th>Ticket prom.</th></tr></thead><tbody></tbody></table>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <div>
+      <p class="sec-title">Marcas y líneas más vendidas</p>
+      <p class="sec-desc">Top 10 por ingreso acumulado, todas las tiendas.</p>
+    </div>
+  </div>
+  <div class="grid-2col">
+    <div class="card">
+      <div style="position:relative;height:260px;">
+        <canvas id="brandsChart" role="img" aria-label="Top marcas por ingreso"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div style="position:relative;height:260px;">
+        <canvas id="linesChart" role="img" aria-label="Top líneas de producto por ingreso"></canvas>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <div>
+      <p class="sec-title">Modelo predictivo de churn</p>
+      <p class="sec-desc">Gradient Boosting entrenado con recencia, frecuencia, monto y variables de comportamiento. Etiqueta: no volvió a comprar en 180 días, evaluada con corte temporal por tienda para evitar fuga de información.</p>
+    </div>
+  </div>
+  <div class="grid-2">
+    <div class="card">
+      <div style="position:relative;height:260px;">
+        <canvas id="riskHistChart" role="img" aria-label="Distribución del score de riesgo de churn"></canvas>
+      </div>
+    </div>
+    <div class="card">
+      <div style="position:relative;height:260px;">
+        <canvas id="importanceChart" role="img" aria-label="Importancia de variables del modelo"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="model-note" id="model-note"></div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <div>
+      <p class="sec-title">Segmentación de la base actual</p>
+      <p class="sec-desc">48,075 clientes con al menos una compra, clasificados por riesgo de churn y valor histórico.</p>
+    </div>
+  </div>
+  <div class="card">
+    <div class="segbar" id="seg-bar"></div>
+    <div class="legend" id="seg-legend"></div>
+  </div>
+</section>
+
+<section>
+  <div class="sec-head">
+    <div>
+      <p class="sec-title">Clientes VIP en riesgo — lista accionable</p>
+      <p class="sec-desc">Top 30 clientes de alto valor histórico con probabilidad de churn ≥ 70%. Candidatos prioritarios para campaña de retención.</p>
+    </div>
+  </div>
+  <div class="card">
+    <table id="vip-table">
+      <thead><tr><th>Cliente</th><th>Tienda</th><th>Valor histórico</th><th>Compras</th><th>Días sin comprar</th><th>Riesgo</th></tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</section>
+
+<footer>Panel generado a partir de las bases consolidadas de RM · Fashion Retail Co.. Cédulas enmascaradas por privacidad.</footer>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script id="data-blob" type="application/json">{"kpi": {"total_clientes": 48075, "total_transacciones": 70565, "total_revenue": 4292783.42, "ticket_promedio": 60.834456458584285, "fecha_min": "2022-11-08", "fecha_max": "2025-08-18"}, "months": ["2022-11", "2022-12", "2023-01", "2023-02", "2023-03", "2023-04", "2023-05", "2023-06", "2023-07", "2023-08", "2023-09", "2023-10", "2023-11", "2023-12", "2024-01", "2024-02", "2024-03", "2024-04", "2024-05", "2024-06", "2024-07", "2024-08", "2024-09", "2024-10", "2024-11", "2024-12", "2025-01", "2025-02", "2025-03", "2025-04", "2025-05", "2025-06", "2025-07", "2025-08"], "store_series": {"TIENDA NORTE": [19370.93, 41827.8, 16158.46, 16454.36, 29634.72, 35056.4, 26643.73, 13712.59, 16293.1, 11063.84, 12174.39, 8843.26, 14415.21, 28112.12, 14527.72, 13490.52, 23472.43, 20758.12, 17256.36, 18495.43, 15807.89, 17296.52, 17428.77, 17598.12, 19668.12, 35530.89, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "TIENDA CENTRO": [39659.77, 143218.13, 25883.18, 22302.02, 56464.58, 55639.29, 44237.79, 20321.32, 24534.71, 19911.27, 26400.4, 23885.24, 33624.41, 111688.5, 16460.1, 24518.17, 44409.15, 31867.64, 29441.07, 17288.34, 20067.42, 37627.25, 31534.2, 24795.62, 41487.31, 110235.93, 21061.65, 22996.97, 45634.56, 34426.69, 21215.36, 20101.45, 1005.11, 0.0], "TIENDA SUR": [19342.35, 53553.47, 22615.84, 22085.54, 39229.88, 48249.93, 31113.28, 16768.36, 27088.89, 20527.31, 17106.52, 16587.42, 21232.02, 38675.94, 17961.17, 19414.11, 38978.9, 34721.18, 24332.55, 25378.09, 21970.6, 22491.44, 20304.71, 23065.36, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "TIENDA VALLE": [16535.16, 59789.15, 14862.5, 15607.62, 24734.88, 25935.21, 18620.2, 13814.12, 17569.01, 12764.66, 10709.58, 15803.56, 21072.75, 54484.32, 16824.82, 17032.88, 26711.53, 24983.33, 20286.88, 24362.88, 22847.59, 26114.62, 20939.59, 18294.73, 18740.01, 57968.09, 15767.63, 18960.41, 24241.51, 18898.07, 14115.77, 14833.99, 0.0, 0.0], "TIENDA ESTE": [18878.89, 37022.55, 24305.75, 18609.66, 39679.03, 41660.75, 26510.51, 15287.79, 19070.16, 17087.6, 14324.66, 17196.39, 23189.3, 39564.26, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 20970.61, 21407.07, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0], "TIENDA MALL A": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 16126.48, 15017.28, 18159.93, 46851.59, 8187.41, 12297.62, 20076.4, 15993.95, 13432.96, 12902.74, 12385.91, 16316.29, 12048.95, 10597.89, 12481.68, 32883.46, 6503.87, 7100.46, 10468.17, 9617.68, 7164.48, 6418.43, 376.5, 0.0], "TIENDA MALL B": [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 30842.19, 28775.62, 25942.48, 27895.29, 60866.41, 30036.26, 28369.45, 48492.7, 30609.99, 28377.59, 38547.66, 39608.94, 24185.42]}, "por_tienda": [{"local": "TIENDA NORTE", "revenue": 521091.8, "clientes": 6397, "transacciones": 8160}, {"local": "TIENDA CENTRO", "revenue": 1243944.6, "clientes": 14582, "transacciones": 22559}, {"local": "TIENDA SUR", "revenue": 642794.86, "clientes": 6564, "transacciones": 9947}, {"local": "TIENDA VALLE", "revenue": 724227.05, "clientes": 7284, "transacciones": 10456}, {"local": "TIENDA ESTE", "revenue": 394764.98, "clientes": 4600, "transacciones": 5711}, {"local": "TIENDA MALL A", "revenue": 323410.13, "clientes": 5010, "transacciones": 6759}, {"local": "TIENDA MALL B", "revenue": 442550.0, "clientes": 5231, "transacciones": 6973}], "top_marcas": [{"marca": "MARCA A", "revenue": 1249168.72}, {"marca": "MARCA B", "revenue": 746410.68}, {"marca": "MARCA C", "revenue": 734569.59}, {"marca": "MARCA D", "revenue": 359219.31}, {"marca": "MARCA E", "revenue": 330128.48}, {"marca": "MARCA A", "revenue": 111300.1}, {"marca": "MARCA F", "revenue": 105568.05}, {"marca": "MARCA B", "revenue": 70768.59}, {"marca": "MARCA D", "revenue": 67010.3}, {"marca": "MARCA G", "revenue": 57063.21}], "top_lineas": [{"linea": "ZAPATO", "revenue": 936030.39}, {"linea": "VESTIDO", "revenue": 733187.41}, {"linea": "BLUSA", "revenue": 567575.49}, {"linea": "PANTALON", "revenue": 392252.18}, {"linea": "ZAPATOS", "revenue": 279148.01}, {"linea": "ENTERIZO", "revenue": 161692.23}, {"linea": "BLUSAS", "revenue": 131431.41}, {"linea": "VESTIDOS", "revenue": 124897.46}, {"linea": "TOP", "revenue": 124543.21}, {"linea": "FALDA", "revenue": 116113.68000000001}], "riesgo_hist": {"counts": [0, 0, 15, 21, 34, 38, 26, 43, 50, 77, 156, 251, 370, 604, 944, 1411, 1705, 5504, 16174, 20652], "edges": [0.0, 0.05, 0.1, 0.15, 0.2, 0.25, 0.3, 0.35, 0.4, 0.45, 0.5, 0.55, 0.6, 0.65, 0.7, 0.75, 0.8, 0.85, 0.9, 0.95, 1.0]}, "segmentos": {"En riesgo": 35849, "VIP en riesgo": 10541, "Medio": 1577, "VIP fiel": 107, "Fiel": 1}, "top_vip_riesgo": [{"cedula_masked": "***7627", "tienda": "TIENDA VALLE", "valor_historico": 14939.13, "frecuencia": 118, "dias_sin_comprar": 723, "riesgo_pct": 89.6}, {"cedula_masked": "***7824", "tienda": "TIENDA MALL A", "valor_historico": 4219.85, "frecuencia": 46, "dias_sin_comprar": 436, "riesgo_pct": 96.8}, {"cedula_masked": "***5902", "tienda": "TIENDA CENTRO", "valor_historico": 3411.13, "frecuencia": 10, "dias_sin_comprar": 370, "riesgo_pct": 93.5}, {"cedula_masked": "***8471", "tienda": "TIENDA MALL A", "valor_historico": 3210.52, "frecuencia": 44, "dias_sin_comprar": 436, "riesgo_pct": 95.8}, {"cedula_masked": "***9497", "tienda": "TIENDA MALL A", "valor_historico": 2750.32, "frecuencia": 30, "dias_sin_comprar": 549, "riesgo_pct": 95.5}, {"cedula_masked": "***4344", "tienda": "TIENDA ESTE", "valor_historico": 2594.88, "frecuencia": 42, "dias_sin_comprar": 315, "riesgo_pct": 89.9}, {"cedula_masked": "***4075", "tienda": "TIENDA CENTRO", "valor_historico": 2470.35, "frecuencia": 5, "dias_sin_comprar": 800, "riesgo_pct": 96.2}, {"cedula_masked": "***3001", "tienda": "TIENDA MALL B", "valor_historico": 2435.6, "frecuencia": 3, "dias_sin_comprar": 340, "riesgo_pct": 89.4}, {"cedula_masked": "***4653", "tienda": "TIENDA SUR", "valor_historico": 2410.26, "frecuencia": 36, "dias_sin_comprar": 601, "riesgo_pct": 94.2}, {"cedula_masked": "***3001", "tienda": "TIENDA MALL B", "valor_historico": 2289.98, "frecuencia": 6, "dias_sin_comprar": 71, "riesgo_pct": 80.4}, {"cedula_masked": "***1001", "tienda": "TIENDA NORTE", "valor_historico": 2272.32, "frecuencia": 11, "dias_sin_comprar": 199, "riesgo_pct": 83.9}, {"cedula_masked": "***8069", "tienda": "TIENDA VALLE", "valor_historico": 2188.2, "frecuencia": 31, "dias_sin_comprar": 727, "riesgo_pct": 84.5}, {"cedula_masked": "***3557", "tienda": "TIENDA VALLE", "valor_historico": 2115.63, "frecuencia": 6, "dias_sin_comprar": 358, "riesgo_pct": 94.6}, {"cedula_masked": "***6210", "tienda": "TIENDA VALLE", "valor_historico": 1949.73, "frecuencia": 37, "dias_sin_comprar": 732, "riesgo_pct": 84.8}, {"cedula_masked": "***4127", "tienda": "TIENDA CENTRO", "valor_historico": 1936.46, "frecuencia": 27, "dias_sin_comprar": 560, "riesgo_pct": 90.2}, {"cedula_masked": "***5616", "tienda": "TIENDA CENTRO", "valor_historico": 1913.65, "frecuencia": 19, "dias_sin_comprar": 760, "riesgo_pct": 85.9}, {"cedula_masked": "***1001", "tienda": "TIENDA CENTRO", "valor_historico": 1862.0, "frecuencia": 1, "dias_sin_comprar": 303, "riesgo_pct": 97.4}, {"cedula_masked": "***6085", "tienda": "TIENDA CENTRO", "valor_historico": 1633.03, "frecuencia": 9, "dias_sin_comprar": 418, "riesgo_pct": 75.8}, {"cedula_masked": "***7237", "tienda": "TIENDA MALL A", "valor_historico": 1602.94, "frecuencia": 25, "dias_sin_comprar": 419, "riesgo_pct": 86.5}, {"cedula_masked": "***3235", "tienda": "TIENDA ESTE", "valor_historico": 1599.75, "frecuencia": 29, "dias_sin_comprar": 482, "riesgo_pct": 95.8}, {"cedula_masked": "***7278", "tienda": "TIENDA CENTRO", "valor_historico": 1557.64, "frecuencia": 4, "dias_sin_comprar": 624, "riesgo_pct": 91.7}, {"cedula_masked": "***6283", "tienda": "TIENDA MALL A", "valor_historico": 1490.34, "frecuencia": 19, "dias_sin_comprar": 374, "riesgo_pct": 92.7}, {"cedula_masked": "***5711", "tienda": "TIENDA ESTE", "valor_historico": 1487.53, "frecuencia": 8, "dias_sin_comprar": 404, "riesgo_pct": 90.1}, {"cedula_masked": "***8001", "tienda": "TIENDA VALLE", "valor_historico": 1397.33, "frecuencia": 6, "dias_sin_comprar": 184, "riesgo_pct": 75.7}, {"cedula_masked": "***8001", "tienda": "TIENDA MALL B", "valor_historico": 1346.73, "frecuencia": 7, "dias_sin_comprar": 241, "riesgo_pct": 83.8}, {"cedula_masked": "***3001", "tienda": "TIENDA VALLE", "valor_historico": 1299.39, "frecuencia": 4, "dias_sin_comprar": 184, "riesgo_pct": 92.7}, {"cedula_masked": "***6148", "tienda": "TIENDA CENTRO", "valor_historico": 1297.0, "frecuencia": 1, "dias_sin_comprar": 91, "riesgo_pct": 93.8}, {"cedula_masked": "***0258", "tienda": "TIENDA NORTE", "valor_historico": 1268.98, "frecuencia": 1, "dias_sin_comprar": 774, "riesgo_pct": 95.9}, {"cedula_masked": "***3001", "tienda": "TIENDA VALLE", "valor_historico": 1235.48, "frecuencia": 6, "dias_sin_comprar": 558, "riesgo_pct": 86.6}, {"cedula_masked": "***3451", "tienda": "TIENDA ESTE", "valor_historico": 1219.41, "frecuencia": 4, "dias_sin_comprar": 582, "riesgo_pct": 95.2}], "model": {"auc_logit": 0.7148, "auc_rf": 0.7212, "auc_gb": 0.7253, "best_model": "Gradient Boosting", "best_auc": 0.7253, "n_train": 29508, "n_test": 9837, "churn_rate_train": 0.9197, "feature_importance": {"frequency": 0.2002, "recency_days": 0.1413, "total_items": 0.0997, "avg_days_between_purchases": 0.0985, "monetary_total": 0.0834, "store_TIENDA MALL B": 0.0712, "tenure_days": 0.0609, "n_lines": 0.0587, "avg_ticket": 0.0546, "n_brands": 0.0406, "store_TIENDA ESTE": 0.0383, "has_birthday": 0.015}, "roc_points": [[0.0, 0.0], [0.0, 0.0199], [0.0, 0.0558], [0.0089, 0.0856], [0.0152, 0.1106], [0.0329, 0.1543], [0.0456, 0.1772], [0.0608, 0.2222], [0.081, 0.2615], [0.1076, 0.3096], [0.1291, 0.3507], [0.138, 0.3809], [0.157, 0.412], [0.1696, 0.4285], [0.1772, 0.4476], [0.1835, 0.4642], [0.2051, 0.485], [0.2304, 0.5071], [0.2418, 0.5258], [0.2519, 0.5468], [0.2608, 0.5602], [0.2747, 0.5726], [0.2937, 0.5948], [0.3139, 0.6114], [0.3291, 0.6258], [0.343, 0.6355], [0.3544, 0.6485], [0.3633, 0.6608], [0.3684, 0.6748], [0.3772, 0.6908], [0.3911, 0.7074], [0.3975, 0.7184], [0.4152, 0.7345], [0.4266, 0.746], [0.4367, 0.7572], [0.443, 0.7699], [0.4519, 0.781], [0.4595, 0.7952], [0.4722, 0.8056], [0.4924, 0.8159], [0.5127, 0.826], [0.5253, 0.8422], [0.543, 0.8544], [0.5557, 0.8637], [0.5759, 0.8758], [0.5962, 0.8845], [0.6139, 0.8938], [0.6367, 0.9033], [0.6557, 0.9117], [0.6772, 0.9232], [0.7, 0.9345], [0.7278, 0.9423], [0.7468, 0.9527], [0.7633, 0.9601], [0.7861, 0.9685], [0.8114, 0.9759], [0.8443, 0.9803], [0.8747, 0.9865], [0.9076, 0.9917], [0.9481, 0.9956], [0.9797, 0.9989]]}}</script>
+<script>
+const DATA = JSON.parse(document.getElementById('data-blob').textContent);
+
+const isDark = matchMedia('(prefers-color-scheme: dark)').matches;
+const ink = isDark ? '#F1ECE4' : '#1E1B16';
+const inkSoft = isDark ? '#C7BEB2' : '#66605A';
+const inkMute = isDark ? '#8C8478' : '#918B84';
+const gridColor = isDark ? '#3A342C' : '#E4E0D8';
+
+const PALETTE = ['#7A4E2D','#2F7A52','#3266AD','#B4432E','#8B6FB0','#C77F1B','#4B8C8C'];
+
+function fmtMoney(v){
+  return '$' + Number(v).toLocaleString('es-EC', {maximumFractionDigits:0});
+}
+function fmtNum(v){
+  return Number(v).toLocaleString('es-EC');
+}
+
+Chart.defaults.font.family = "-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif";
+Chart.defaults.font.size = 12;
+Chart.defaults.color = inkSoft;
+
+// ---------- Header meta + KPIs ----------
+const kpi = DATA.kpi;
+document.getElementById('meta-row').innerHTML = `
+  <span><span class="dot"></span>${kpi.fecha_min} → ${kpi.fecha_max}</span>
+  <span><span class="dot"></span>7 tiendas Fashion Retail Co.</span>
+  <span><span class="dot"></span>Modelo: ${DATA.model.best_model} (AUC ${DATA.model.best_auc})</span>
+`;
+
+const churnRateGlobal = (DATA.segmentos['En riesgo'] + DATA.segmentos['VIP en riesgo']) / kpi.total_clientes;
+
+const kpiItems = [
+  {label:'Clientes analizados', val: fmtNum(kpi.total_clientes), note:'con >=1 compra registrada'},
+  {label:'Transacciones', val: fmtNum(kpi.total_transacciones), note:'eventos de compra únicos'},
+  {label:'Ingreso total', val: fmtMoney(kpi.total_revenue), note:'periodo completo'},
+  {label:'Ticket promedio', val: fmtMoney(kpi.ticket_promedio), note:'por evento de compra'},
+  {label:'Riesgo de churn', val: (churnRateGlobal*100).toFixed(0)+'%', note:'base actual, score >=50%'},
+];
+document.getElementById('kpi-row').innerHTML = kpiItems.map(k => `
+  <div class="kpi">
+    <p class="kpi-label">${k.label}</p>
+    <p class="kpi-val">${k.val}</p>
+    <p class="kpi-note">${k.note}</p>
+  </div>
+`).join('');
+
+// ---------- Ventas mensuales por tienda ----------
+const stores = Object.keys(DATA.store_series);
+const monthLabels = DATA.months.map(m => {
+  const [y,mo] = m.split('-');
+  const names = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+  return names[parseInt(mo,10)-1] + ' ' + y.slice(2);
+});
+
+const filterSel = document.getElementById('store-filter');
+filterSel.innerHTML = '<option value="__all__">Todas las tiendas</option>' +
+  stores.map(s => `<option value="${s}">${s}</option>`).join('');
+
+let salesChart;
+function renderSalesChart(selected){
+  const ctx = document.getElementById('salesChart');
+  const datasets = (selected === '__all__' ? stores : [selected]).map((s, i) => ({
+    label: s,
+    data: DATA.store_series[s],
+    borderColor: PALETTE[stores.indexOf(s) % PALETTE.length],
+    backgroundColor: PALETTE[stores.indexOf(s) % PALETTE.length] + '22',
+    borderWidth: 2,
+    pointRadius: 0,
+    tension: 0.25,
+    fill: selected !== '__all__',
+  }));
+  if(salesChart) salesChart.destroy();
+  salesChart = new Chart(ctx, {
+    type:'line',
+    data:{labels:monthLabels, datasets},
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{grid:{display:false}, ticks:{maxRotation:0, autoSkip:true, maxTicksLimit:14}},
+        y:{grid:{color:gridColor}, ticks:{callback:v=>fmtMoney(v)}}
+      }
+    }
+  });
+  document.getElementById('sales-legend').innerHTML = datasets.map((d,i)=>
+    `<span><span class="sw" style="background:${d.borderColor}"></span>${d.label}</span>`).join('');
+}
+renderSalesChart('__all__');
+filterSel.addEventListener('change', e => renderSalesChart(e.target.value));
+
+// ---------- Desempeño por tienda ----------
+const porTienda = DATA.por_tienda.slice().sort((a,b)=>b.revenue-a.revenue);
+new Chart(document.getElementById('storeRevChart'), {
+  type:'bar',
+  data:{
+    labels: porTienda.map(t=>t.local),
+    datasets:[{label:'Ingreso', data:porTienda.map(t=>t.revenue), backgroundColor:'#7A4E2D', borderRadius:4, maxBarThickness:28}]
+  },
+  options:{
+    indexAxis:'y', responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{
+      x:{grid:{color:gridColor}, ticks:{callback:v=>fmtMoney(v)}},
+      y:{grid:{display:false}}
+    }
+  }
+});
+document.querySelector('#store-table tbody').innerHTML = porTienda.map(t => `
+  <tr>
+    <td>${t.local}</td>
+    <td>${fmtNum(t.clientes)}</td>
+    <td>${fmtMoney(t.revenue / t.transacciones)}</td>
+  </tr>
+`).join('');
+
+// ---------- Top marcas / lineas ----------
+new Chart(document.getElementById('brandsChart'), {
+  type:'bar',
+  data:{
+    labels: DATA.top_marcas.map(m=>m.marca),
+    datasets:[{data: DATA.top_marcas.map(m=>m.revenue), backgroundColor:'#3266AD', borderRadius:4, maxBarThickness:20}]
+  },
+  options:{
+    indexAxis:'y', responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{ x:{grid:{color:gridColor}, ticks:{callback:v=>fmtMoney(v)}}, y:{grid:{display:false}} }
+  }
+});
+new Chart(document.getElementById('linesChart'), {
+  type:'bar',
+  data:{
+    labels: DATA.top_lineas.map(m=>m.linea),
+    datasets:[{data: DATA.top_lineas.map(m=>m.revenue), backgroundColor:'#2F7A52', borderRadius:4, maxBarThickness:20}]
+  },
+  options:{
+    indexAxis:'y', responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{ x:{grid:{color:gridColor}, ticks:{callback:v=>fmtMoney(v)}}, y:{grid:{display:false}} }
+  }
+});
+
+// ---------- Distribucion de riesgo ----------
+const hist = DATA.riesgo_hist;
+const histLabels = hist.edges.slice(0,-1).map((e,i)=> Math.round(e*100)+'-'+Math.round(hist.edges[i+1]*100)+'%');
+new Chart(document.getElementById('riskHistChart'), {
+  type:'bar',
+  data:{labels:histLabels, datasets:[{data:hist.counts, backgroundColor: hist.edges.slice(0,-1).map(e => e>=0.7?'#B4432E': e>=0.3?'#C77F1B':'#2F7A52'), borderRadius:3}]},
+  options:{
+    responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{ x:{grid:{display:false}, ticks:{maxRotation:60, minRotation:60, autoSkip:false, font:{size:10}}}, y:{grid:{color:gridColor}} }
+  }
+});
+
+// ---------- Importancia de variables ----------
+const impEntries = Object.entries(DATA.model.feature_importance)
+  .filter(([k])=>!k.startsWith('store_'))
+  .sort((a,b)=>b[1]-a[1]).slice(0,8);
+const nameMap = {frequency:'Frecuencia de compra', recency_days:'Días desde última compra', total_items:'Artículos comprados',
+  avg_days_between_purchases:'Intervalo entre compras', monetary_total:'Gasto histórico total', tenure_days:'Antigüedad como cliente',
+  n_lines:'Diversidad de líneas', avg_ticket:'Ticket promedio', n_brands:'Diversidad de marcas', has_birthday:'Cumpleaños registrado'};
+new Chart(document.getElementById('importanceChart'), {
+  type:'bar',
+  data:{
+    labels: impEntries.map(([k])=>nameMap[k]||k),
+    datasets:[{data: impEntries.map(([,v])=>v), backgroundColor:'#8B6FB0', borderRadius:4, maxBarThickness:20}]
+  },
+  options:{
+    indexAxis:'y', responsive:true, maintainAspectRatio:false,
+    plugins:{legend:{display:false}},
+    scales:{ x:{grid:{color:gridColor}}, y:{grid:{display:false}} }
+  }
+});
+
+document.getElementById('model-note').innerHTML =
+  `El modelo distingue correctamente entre un cliente que vuelve y uno que no en el <strong style="color:var(--accent)">${Math.round(DATA.model.best_auc*100)}%</strong> de los pares comparados (AUC). ` +
+  `La recencia y la frecuencia de compra son, por lejos, las señales más fuertes: un cliente que compró una sola vez hace mucho tiempo es casi siempre el que no vuelve. ` +
+  `Entrenado con ${fmtNum(DATA.model.n_train)} clientes y validado con ${fmtNum(DATA.model.n_test)} adicionales, usando un corte temporal independiente por tienda para evitar fuga de información del futuro.`;
+
+// ---------- Segmentacion ----------
+const segColors = {'VIP en riesgo':'#B4432E','En riesgo':'#C77F1B','Medio':'#8C8478','VIP fiel':'#2F7A52','Fiel':'#4B8C8C'};
+const segOrder = ['VIP en riesgo','En riesgo','Medio','VIP fiel','Fiel'];
+const segTotal = Object.values(DATA.segmentos).reduce((a,b)=>a+b,0);
+document.getElementById('seg-bar').innerHTML = segOrder.filter(s=>DATA.segmentos[s]).map(s => {
+  const pct = (DATA.segmentos[s]/segTotal*100);
+  return `<div class="seg-item" style="width:${pct}%;background:${segColors[s]}">${pct>=6?pct.toFixed(0)+'%':''}</div>`;
+}).join('');
+document.getElementById('seg-legend').innerHTML = segOrder.filter(s=>DATA.segmentos[s]).map(s =>
+  `<span><span class="sw" style="background:${segColors[s]}"></span>${s} — ${fmtNum(DATA.segmentos[s])} clientes</span>`).join('');
+
+// ---------- Tabla VIP en riesgo ----------
+document.querySelector('#vip-table tbody').innerHTML = DATA.top_vip_riesgo.map(c => {
+  const pillClass = c.riesgo_pct>=85?'pill-hi':(c.riesgo_pct>=70?'pill-mid':'pill-lo');
+  return `<tr>
+    <td>${c.cedula_masked}</td>
+    <td>${c.tienda}</td>
+    <td>${fmtMoney(c.valor_historico)}</td>
+    <td>${c.frecuencia}</td>
+    <td>${c.dias_sin_comprar}</td>
+    <td><span class="pill ${pillClass}">${c.riesgo_pct}%</span></td>
+  </tr>`;
+}).join('');
+
+</script>
+</body>
+</html>
